@@ -1,10 +1,2 @@
-import CoachPanel from '@/components/CoachPanel';
-import { coaches, plan } from '@/lib/coaches';
-
-export default function Home() {
-  return <main className="min-h-screen"><div className="mx-auto max-w-7xl px-6 py-10">
-    <header className="flex flex-col gap-5 border-b border-white/10 pb-8 md:flex-row md:items-end md:justify-between"><div><p className="text-sm uppercase tracking-[.25em] text-orange-400">Rock Guitar AI</p><h1 className="mt-3 max-w-3xl text-4xl font-black text-white md:text-6xl">Every coach you need to play rock guitar.</h1><p className="mt-4 max-w-2xl text-slate-300">Personalized practice plans, technique guidance, and AI feedback for beginners through serious players.</p></div><a href="#coach" className="rounded-full bg-orange-500 px-6 py-3 text-center font-bold text-white hover:bg-orange-400">Start today&apos;s session</a></header>
-    <section className="mt-10"><p className="text-xs uppercase tracking-[.2em] text-slate-400">Choose your coach</p><h2 className="mt-2 text-3xl font-bold text-white">Your complete rock guitar team</h2><div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">{coaches.map(c=><article key={c.name} className="rounded-3xl border border-white/10 bg-white/5 p-5 transition hover:-translate-y-1 hover:border-orange-400/50"><div className="text-4xl">{c.icon}</div><h3 className="mt-4 text-xl font-bold text-white">{c.name}</h3><p className="mt-3 text-sm leading-6 text-slate-300">{c.description}</p><ul className="mt-4 space-y-2 text-xs text-orange-200">{c.drills.map(d=><li key={d}>✦ {d}</li>)}</ul></article>)}</div></section>
-    <section className="mt-10 grid gap-6 lg:grid-cols-[1.4fr_.8fr]"><div className="rounded-3xl border border-white/10 bg-white/5 p-6"><p className="text-xs uppercase tracking-[.2em] text-orange-300">Personalized for you</p><h2 className="mt-2 text-2xl font-bold text-white">Today&apos;s practice plan</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{plan.map((p,i)=><div key={p.title} className="rounded-2xl bg-[#11131a] p-4"><div className="flex justify-between"><h3 className="font-semibold text-white">{i+1}. {p.title}</h3><span className="text-xs text-green-300">{p.time}</span></div><p className="mt-2 text-sm text-slate-300">{p.text}</p></div>)}</div></div><div id="coach"><CoachPanel /></div></section>
-  </div></main>;
-}
+import CoachApp from '@/components/CoachApp';
+export default function Home() { return <CoachApp />; }
