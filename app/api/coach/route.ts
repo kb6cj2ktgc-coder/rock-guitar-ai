@@ -9,6 +9,9 @@ function fallbackReply(question: string, coach: string) {
   if (/^(hi|hello|hey|yo|good morning|good afternoon)\b/.test(text)) {
     return `Hey! I'm your ${coach}. What would you like to work on: chords, rhythm, riffs, soloing, or a practice plan?`;
   }
+  if (/\bbanana\b/.test(text)) {
+    return 'A banana is a soft, sweet fruit that grows in bunches. It is a good source of carbohydrates and potassium. Now, whenever you are ready, let’s get back to guitar and work on your playing.';
+  }
   if (/\b(e\s*minor|em|e minor)\s*(chord|cord)?\b/.test(text) || /how (do|can) i play.*\bem\b/.test(text)) {
     return 'To play an E minor (Em) chord: place your index finger on the 2nd fret of the 5th string (A), and your middle finger on the 2nd fret of the 4th string (D). Leave the other strings open, then strum all six strings. Pick each string once to check that every note rings clearly. Keep your thumb relaxed behind the neck, and slowly lift and replace your fingers until the chord sounds clean.';
   }
@@ -43,7 +46,7 @@ function fallbackReply(question: string, coach: string) {
     return 'Start with a clean or slightly overdriven tone while practicing. Too much gain can hide mistakes. Add gain gradually after your fretting and picking sound clean.';
   }
 
-  return `I can help with that. As your ${coach}, tell me the chord, riff, technique, song, or practice goal you mean, and I will give you step-by-step guitar instructions.`;
+  return `That is an interesting question. I can answer simple general questions, but I am mainly your guitar coach. If you want to continue with guitar, ask me about a chord, riff, song, technique, tone, or practice plan and I’ll give you a useful step-by-step answer.`;
 }
 
 export async function POST(request: NextRequest) {
@@ -58,13 +61,13 @@ export async function POST(request: NextRequest) {
     const result = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'You are Rock Guitar AI, a practical and encouraging guitar coach. Answer the exact question directly before adding general advice. Interpret likely typos such as "EM cord" as "Em chord". For chord questions, give finger placement by string and fret, which strings to strum or avoid, and one checking tip. Cover rock rhythm, chords, riffs, soloing, technique, tone, practice plans, and songs. Never claim to hear the player unless audio is provided. If unrelated, politely guide the conversation back to guitar.' },
-        { role: 'user', content: `Coach mode: ${coach}\nPlayer question: ${question}` },
+        { role: 'system', content: 'You are Rock Guitar AI, a friendly conversational guitar coach. Answer the user’s exact question first, even when it is not about guitar. For general questions, give a brief accurate answer, then naturally add one short sentence inviting them back to guitar. For guitar questions, give practical step-by-step advice. Interpret likely typos such as "EM cord" as "Em chord". For chord questions, give finger placement by string and fret, which strings to strum or avoid, and one checking tip. Never claim to hear the player unless audio is provided.' },
+        { role: 'user', content: `Coach mode: ${coach}\nPlayer message: ${question}` },
       ],
       temperature: 0.7,
       max_tokens: 350,
     });
-    return NextResponse.json({ message: result.choices[0]?.message?.content || 'Keep the tempo steady and focus on clean, relaxed playing.' });
+    return NextResponse.json({ message: result.choices[0]?.message?.content || 'Tell me what you want to learn on guitar and I’ll help you get started.' });
   } catch {
     return NextResponse.json({ message: 'The coach could not answer right now. Check your setup and try again.' }, { status: 500 });
   }
