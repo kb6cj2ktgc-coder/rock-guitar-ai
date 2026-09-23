@@ -68,7 +68,13 @@ export async function POST(request: NextRequest) {
       max_tokens: 350,
     });
     return NextResponse.json({ message: result.choices[0]?.message?.content || 'Tell me what you want to learn on guitar and I’ll help you get started.' });
-  } catch {
-    return NextResponse.json({ message: 'The coach could not answer right now. Check your setup and try again.' }, { status: 500 });
+    } catch (error) {
+    console.error('Coach/OpenAI error:', error);
+
+    return NextResponse.json(
+      { message: 'The coach could not answer right now. Check the Vercel logs.' },
+      { status: 500 }
+    );
   }
 }
+  
