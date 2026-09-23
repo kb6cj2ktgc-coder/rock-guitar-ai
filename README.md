@@ -2,10 +2,10 @@
 
 AI-powered rock guitar coaching for beginners through advanced players.
 
-## Included in this first MVP
+## Current MVP
 
 - Beginner rock, solo, chord/rhythm, technique, and song coach modes
-- Responsive web dashboard
+- Interactive OpenAI coach panel in the web dashboard
 - Personalized practice-plan foundation
 - Secure server-side OpenAI coaching endpoint
 - Mobile-ready Next.js foundation
@@ -15,11 +15,12 @@ AI-powered rock guitar coaching for beginners through advanced players.
 ```bash
 npm install
 cp .env.example .env.local
+# Add your OpenAI key to .env.local
 npm run dev
 ```
 
-Add `OPENAI_API_KEY` to `.env.local` for live coaching. Never commit secret keys.
+Open http://localhost:3000. The app also has a safe fallback response when no API key is configured. Never commit API keys to GitHub.
 
 ## Roadmap
 
-Authentication and saved progress, microphone recording, pitch/rhythm analysis, mobile app packaging, and subscriptions will be added in later milestones.
+Authentication and saved progress, microphone recording, pitch/rhythm analysis, mobile packaging, and subscriptions will be added in later milestones.
