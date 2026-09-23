@@ -17,7 +17,7 @@ export default function CoachApp() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<string>('');
+  const [selectedVoice, setSelectedVoice] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -33,8 +33,11 @@ export default function CoachApp() {
 
   useEffect(() => {
     const loadVoices = () => {
-      const available = window.speechSynthesis?.getVoices?.() ?? [];
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+      const available = window.speechSynthesis.getVoices();
       setVoices(available);
+
       if (!selectedVoice && available.length > 0) {
         setSelectedVoice(available[0].name);
       }
@@ -42,32 +45,34 @@ export default function CoachApp() {
 
     loadVoices();
 
-    if ('speechSynthesis' in window) {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
 
     return () => {
-      if ('speechSynthesis' in window) {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = null;
       }
     };
   }, [selectedVoice]);
 
   function stopSpeaking() {
-    if ('speechSynthesis' in window) {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
   }
 
   function speakText(text: string) {
-    if (!('speechSynthesis' in window) || !text.trim()) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window) || !text.trim()) {
+      return;
+    }
 
     stopSpeaking();
 
     const utterance = new SpeechSynthesisUtterance(text);
     const voice =
       voices.find((item) => item.name === selectedVoice) ||
-      voices.find((item) => item.lang.startsWith('en')) ||
+      voices.find((item) => item.lang.toLowerCase().startsWith('en')) ||
       null;
 
     if (voice) {
@@ -86,33 +91,41 @@ export default function CoachApp() {
     const question = (prompt ?? input).trim();
     if (!question || loading) return;
 
+    const nextMessages: Message[] = [...messages, { role: 'user', content: question }];
+
     setInput('');
-    setMessages((current) => [...current, { role: 'user', content: question }]);
+    setMessages(nextMessages);
     setLoading(true);
 
     try {
       const response = await fetch('/api/coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coach: selectedCoach, question }),
+        body: JSON.stringify({ coach: selectedCoach, question, messages: nextMessages }),
       });
+
       const data = await response.json();
-      const reply = data.message || 'Keep your hands relaxed and focus on clean notes.';
 
-      setMessages((current) => [
-        ...current,
-        { role: 'assistant', content: reply },
-      ]);
+      if (!response.ok) {
+        const errorText = data?.error || data?.message || `Gemini request failed (${response.status})`;
+        throw new Error(errorText);
+      }
 
+      const reply = data.message;
+      if (!reply || typeof reply !== 'string') {
+        throw new Error('Gemini returned an empty response.');
+      }
+
+      const finalMessages = [...nextMessages, { role: 'assistant', content: reply }];
+      setMessages(finalMessages);
       speakText(reply);
-    } catch {
-      const fallback = 'I could not connect right now. Please try again in a moment.';
-      setMessages((current) => [
-        ...current,
-        { role: 'assistant', content: fallback },
-      ]);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'The coach is unavailable right now. Please try again.';
 
-      speakText(fallback);
+      setMessages((current) => [...current, { role: 'assistant', content: message }]);
     } finally {
       setLoading(false);
     }
@@ -130,8 +143,8 @@ export default function CoachApp() {
             </div>
           </div>
 
-          <div className="hidden items-center gap-3 sm:flex">
-            <label className="flex items-center gap-2 text-sm text-slate-400">
+          <div className="flex items-center gap-3">
+            <label className="hidden items-center gap-2 text-sm text-slate-400 sm:flex">
               Coach
               <select
                 value={coach}
@@ -151,7 +164,7 @@ export default function CoachApp() {
               <select
                 value={selectedVoice}
                 onChange={(event) => setSelectedVoice(event.target.value)}
-                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200 outline-none"
+                className="max-w-[170px] rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-slate-200 outline-none"
               >
                 {voices.length === 0 ? (
                   <option value="">Loading...</option>
