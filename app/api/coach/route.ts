@@ -4,13 +4,28 @@ import OpenAI from 'openai';
 const client = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 function fallbackReply(question: string, coach: string) {
-  const text = question.toLowerCase();
+  const text = question.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
 
   if (/^(hi|hello|hey|yo|good morning|good afternoon)\b/.test(text)) {
     return `Hey! I'm your ${coach}. What would you like to work on: chords, rhythm, riffs, soloing, or a practice plan?`;
   }
+  if (/\b(e\s*minor|em|e minor)\s*(chord|cord)?\b/.test(text) || /how (do|can) i play.*\bem\b/.test(text)) {
+    return 'To play an E minor (Em) chord: place your index finger on the 2nd fret of the 5th string (A), and your middle finger on the 2nd fret of the 4th string (D). Leave the other strings open, then strum all six strings. Pick each string once to check that every note rings clearly. Keep your thumb relaxed behind the neck, and slowly lift and replace your fingers until the chord sounds clean.';
+  }
+  if (/\b(a\s*minor|am|a minor)\s*(chord|cord)?\b/.test(text) || /how (do|can) i play.*\bam\b/.test(text)) {
+    return 'For an A minor (Am) chord: put your index finger on the 1st fret of the B string, middle finger on the 2nd fret of the D string, and ring finger on the 2nd fret of the G string. Strum from the A string down, avoiding the low E string. Play each string slowly to make sure every note rings clearly.';
+  }
+  if (/\b(c\s*major|c major|c chord|c cord)\b/.test(text)) {
+    return 'For a C major chord: place your index finger on the 1st fret of the B string, middle finger on the 2nd fret of the D string, and ring finger on the 3rd fret of the A string. Strum from the A string down and avoid the low E string. Check each note one at a time, then practice changing slowly to another chord.';
+  }
+  if (/\b(g\s*major|g major|g chord|g cord)\b/.test(text)) {
+    return 'For a G major chord: place your middle finger on the 3rd fret of the low E string, index finger on the 2nd fret of the A string, and ring finger on the 3rd fret of the high E string. Strum all six strings. Start with slow chord changes and make sure the open strings ring clearly.';
+  }
+  if (/\b(d\s*major|d major|d chord|d cord)\b/.test(text)) {
+    return 'For a D major chord: place your index finger on the 2nd fret of the G string, ring finger on the 3rd fret of the B string, and middle finger on the 2nd fret of the high E string. Strum only the highest four strings, starting from the D string.';
+  }
   if (text.includes('power chord')) {
-    return 'For a clean power chord, place your index finger on the root note and use your ring finger two frets higher on the next string. Pick only those strings, keep your thumb relaxed, and slowly check that every note rings clearly.';
+    return 'For a clean power chord, place your index finger on the root note and your ring finger two frets higher on the next string. Pick only those strings, keep your thumb relaxed, and slowly check that every note rings clearly.';
   }
   if (text.includes('practice') || text.includes('plan') || text.includes('today')) {
     return 'Here is a focused 20-minute plan: 5 minutes of slow warm-ups, 5 minutes of chord changes with a metronome, 5 minutes of a riff at a comfortable tempo, and 5 minutes recording yourself. Increase speed only when every note is clean.';
@@ -21,14 +36,14 @@ function fallbackReply(question: string, coach: string) {
   if (text.includes('pick') || text.includes('speed') || text.includes('fast')) {
     return 'For faster picking, use a metronome and begin far below your maximum speed. Play a short pattern for one minute with relaxed movement, then add only 5 BPM if it stays clean.';
   }
-  if (text.includes('chord') || text.includes('strum')) {
+  if (text.includes('strum') || text.includes('rhythm')) {
     return 'For stronger rhythm playing, mute the strings lightly and practice steady down-up strokes with a metronome. Then add the chord changes one at a time without stopping the pulse.';
   }
   if (text.includes('tone') || text.includes('sound') || text.includes('amp')) {
     return 'Start with a clean or slightly overdriven tone while practicing. Too much gain can hide mistakes. Add gain gradually after your fretting and picking sound clean.';
   }
 
-  return `Good question. As your ${coach}, I suggest starting slowly, isolating one skill, and using a metronome. Tell me whether you are working on chords, rhythm, riffs, soloing, tone, or a specific song, and I will give you a step-by-step exercise.`;
+  return `I can help with that. As your ${coach}, tell me the chord, riff, technique, song, or practice goal you mean, and I will give you step-by-step guitar instructions.`;
 }
 
 export async function POST(request: NextRequest) {
@@ -37,27 +52,18 @@ export async function POST(request: NextRequest) {
     const coach = typeof body.coach === 'string' ? body.coach : 'Rock Guitar Coach';
     const question = typeof body.question === 'string' ? body.question.trim() : '';
 
-    if (!question) {
-      return NextResponse.json({ message: 'Ask me a guitar question and I will help you.' }, { status: 400 });
-    }
-
-    if (!client) {
-      return NextResponse.json({ message: fallbackReply(question, coach), demo: true });
-    }
+    if (!question) return NextResponse.json({ message: 'Ask me a guitar question and I will help you.' }, { status: 400 });
+    if (!client) return NextResponse.json({ message: fallbackReply(question, coach), demo: true });
 
     const result = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content: 'You are Rock Guitar AI, a practical, encouraging guitar coach. Answer the player directly and conversationally. Give concise, actionable guidance for beginners and advanced players. Cover rock rhythm, chords, riffs, soloing, technique, tone, practice plans, and songs. Never claim to hear the player unless audio is provided. If the request is unrelated, politely guide it back to guitar.',
-        },
+        { role: 'system', content: 'You are Rock Guitar AI, a practical and encouraging guitar coach. Answer the exact question directly before adding general advice. Interpret likely typos such as "EM cord" as "Em chord". For chord questions, give finger placement by string and fret, which strings to strum or avoid, and one checking tip. Cover rock rhythm, chords, riffs, soloing, technique, tone, practice plans, and songs. Never claim to hear the player unless audio is provided. If unrelated, politely guide the conversation back to guitar.' },
         { role: 'user', content: `Coach mode: ${coach}\nPlayer question: ${question}` },
       ],
       temperature: 0.7,
       max_tokens: 350,
     });
-
     return NextResponse.json({ message: result.choices[0]?.message?.content || 'Keep the tempo steady and focus on clean, relaxed playing.' });
   } catch {
     return NextResponse.json({ message: 'The coach could not answer right now. Check your setup and try again.' }, { status: 500 });
