@@ -1,0 +1,1 @@
+module.exports = { content: ['./app/**/*.{js,ts,jsx,tsx,mdx}','./components/**/*.{js,ts,jsx,tsx,mdx}','./lib/**/*.{js,ts,jsx,tsx,mdx}'], theme: { extend: { colors: { ember: { 400:'#fb923c',500:'#f97316',600:'#ea580c' } }, boxShadow: { glow:'0 0 30px rgba(249,115,22,.25)' } } }, plugins: [] };
