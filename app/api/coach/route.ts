@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
 
-const client = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 function fallbackReply(question: string, coach: string) {
   const text = question.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
@@ -55,26 +54,71 @@ export async function POST(request: NextRequest) {
     const coach = typeof body.coach === 'string' ? body.coach : 'Rock Guitar Coach';
     const question = typeof body.question === 'string' ? body.question.trim() : '';
 
-    if (!question) return NextResponse.json({ message: 'Ask me a guitar question and I will help you.' }, { status: 400 });
-    if (!client) return NextResponse.json({ message: fallbackReply(question, coach), demo: true });
+    if (!question) {
+      return NextResponse.json(
+        { message: 'Ask me a guitar question and I will help you.' },
+        { status: 400 }
+      );
+    }
 
-    const result = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: 'You are Rock Guitar AI, a friendly conversational guitar coach. Answer the user’s exact question first, even when it is not about guitar. For general questions, give a brief accurate answer, then naturally add one short sentence inviting them back to guitar. For guitar questions, give practical step-by-step advice. Interpret likely typos such as "EM cord" as "Em chord". For chord questions, give finger placement by string and fret, which strings to strum or avoid, and one checking tip. Never claim to hear the player unless audio is provided.' },
-        { role: 'user', content: `Coach mode: ${coach}\nPlayer message: ${question}` },
-      ],
-      temperature: 0.7,
-      max_tokens: 350,
+    if (!GEMINI_API_KEY) {
+      return NextResponse.json(
+        { message: fallbackReply(question, coach), demo: true },
+        { status: 200 }
+      );
+    }
+
+    const systemPrompt =
+      'You are Rock Guitar AI, a friendly conversational guitar coach. Answer the user’s exact question first, even when it is not about guitar. For general questions, give a brief accurate answer, then naturally add one short sentence inviting them back to guitar. For guitar questions, give practical step-by-step advice. Interpret likely typos such as "EM cord" as "Em chord". For chord questions, give finger placement by string and fret, which strings to strum or avoid, and one checking tip. Never claim to hear the player unless audio is provided.';
+
+    const userPrompt = `Coach mode: ${coach}\nPlayer message: ${question}`;
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: `${systemPrompt}\n\n${userPrompt}` }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 350
+          }
+        })
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error('Gemini error:', data);
+      return NextResponse.json(
+        { message: 'The coach could not answer right now. Check the Vercel logs.' },
+        { status: 500 }
+      );
+    }
+
+    const content =
+      data?.candidates?.[0]?.content?.parts
+        ?.map((part: any) => part.text)
+        .join('') || '';
+
+    return NextResponse.json({
+      message: content || 'Tell me what you want to learn on guitar and I’ll help you get started.'
     });
-    return NextResponse.json({ message: result.choices[0]?.message?.content || 'Tell me what you want to learn on guitar and I’ll help you get started.' });
-    } catch (error) {
-    console.error('Coach/OpenAI error:', error);
-
+  } catch (error) {
+    console.error('Coach/Gemini error:', error);
     return NextResponse.json(
       { message: 'The coach could not answer right now. Check the Vercel logs.' },
       { status: 500 }
     );
   }
 }
-  
