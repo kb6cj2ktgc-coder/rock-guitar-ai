@@ -10,12 +10,12 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 function fallbackReply(
   question: string,
   history: ConversationMessage[],
+  coachName = 'Rock Guitar Coach',
 ): string {
   const text = question.toLowerCase().trim();
   const lastTopic = [...history]
     .reverse()
     .find((message) => message.role === 'user')?.content;
-
   const topic = lastTopic || 'that guitar question';
 
   if (
@@ -45,7 +45,7 @@ function fallbackReply(
   }
 
   if (/^(hi|hello|hey|yo)\b/.test(text)) {
-    return 'Hey! I’m ready to help. What would you like to learn on guitar today?';
+    return `Hey! I’m ${coachName} and I’m ready to help. What would you like to learn on guitar today?`;
   }
 
   if (text.includes('riff') || text.includes('roof') || text.includes('ref')) {
@@ -54,6 +54,10 @@ function fallbackReply(
 
   if (text.includes('power chord') || text.includes('power chords')) {
     return 'To play a power chord, put your index finger on the root note and your ring finger two frets higher on the next string. Pick only those strings. Start slowly, check that both notes sound clean, and then move the shape to another fret.';
+  }
+
+  if (text.includes('practice')) {
+    return 'Try this 20-minute plan: five minutes of warm-ups, five minutes of chord changes, five minutes of rhythm practice, and five minutes playing a song slowly. Keep everything clean before increasing the speed.';
   }
 
   return lastTopic
@@ -79,6 +83,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const question = typeof body.question === 'string' ? body.question.trim() : '';
+    const coach = typeof body.coach === 'string' ? body.coach : 'Rock Guitar Coach';
     const history = cleanHistory(body.messages);
 
     if (!question) {
@@ -90,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     if (!GEMINI_API_KEY) {
       return NextResponse.json({
-        message: fallbackReply(question, history),
+        message: fallbackReply(question, history, coach),
         demo: true,
       });
     }
@@ -104,9 +109,9 @@ If the player is confused, refer to the exact previous topic and ask which part 
 Answer naturally in complete paragraphs. Give practical, step-by-step guitar help. Keep track of the player's topic. Do not claim to provide or show a video unless a video feature actually exists; you may say you can suggest what to search for.
 `;
 
-    const contents = [
+    const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [
       ...history.map((message) => ({
-        role: message.role === 'assistant' ? 'model' : 'user',
+        role: message.role === 'assistant' ? ('model' as const) : ('user' as const),
         parts: [{ text: message.content }],
       })),
       { role: 'user', parts: [{ text: question }] },
@@ -136,7 +141,7 @@ Answer naturally in complete paragraphs. Give practical, step-by-step guitar hel
     if (!response.ok) {
       console.error('Gemini error:', data);
       return NextResponse.json({
-        message: fallbackReply(question, history),
+        message: fallbackReply(question, history, coach),
         demo: true,
         apiError: response.status,
       });
@@ -148,7 +153,7 @@ Answer naturally in complete paragraphs. Give practical, step-by-step guitar hel
       .trim();
 
     return NextResponse.json({
-      message || fallbackReply(question, history),
+      message: message || fallbackReply(question, history, coach),
       demo: !message,
     });
   } catch (error) {
